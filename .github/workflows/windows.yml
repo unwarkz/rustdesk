@@ -64,6 +64,16 @@ jobs:
           restore-keys: |
             cargo-build-${{ runner.os }}-
 
+      - name: Debug Opus include path
+        run: |
+          dir vcpkg\installed\x64-windows-static\include\opus
+          dir vcpkg\installed\x64-windows-static\include
+        shell: pwsh
+
+      - name: Set OPUS_INCLUDE_DIR environment variable
+        run: echo "OPUS_INCLUDE_DIR=$PWD/vcpkg/installed/x64-windows-static/include" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
       - name: Build (release)
         run: cargo build --release --target x86_64-pc-windows-msvc
 
