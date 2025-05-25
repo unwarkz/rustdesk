@@ -66,7 +66,6 @@ jobs:
 
       - name: Debug Opus include path
         run: |
-          dir vcpkg\installed\x64-windows-static\include\opus
           dir vcpkg\installed\x64-windows-static\include
         shell: pwsh
 
