@@ -22,7 +22,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            vcpkg/installed
+            vcpkg_installed
             vcpkg/buildtrees
             vcpkg/downloads
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
@@ -32,9 +32,11 @@ jobs:
       - name: Install vcpkg dependencies
         run: |
           git clone https://github.com/microsoft/vcpkg
-          .\vcpkg\bootstrap-vcpkg.bat
-          .\vcpkg\vcpkg.exe install --triplet x64-windows-static
+          cd vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe install --triplet x64-windows-static
         shell: pwsh
+        working-directory: ${{ github.workspace }}
 
       - name: Set VCPKG_ROOT environment variable
         run: echo "VCPKG_ROOT=$PWD/vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -64,20 +66,15 @@ jobs:
           restore-keys: |
             cargo-build-${{ runner.os }}-
 
-      - name: Debug vcpkg root
-        run: |
-          dir vcpkg
-          dir vcpkg\installed
-        shell: pwsh
-
       - name: Debug Opus include path
         run: |
-          dir vcpkg\installed\x64-windows-static\include
+          dir vcpkg_installed\x64-windows-static\include
         shell: pwsh
 
       - name: Set OPUS_INCLUDE_DIR environment variable
-        run: echo "OPUS_INCLUDE_DIR=$PWD/vcpkg/installed/x64-windows-static/include" | Out-File -FilePath $env:GITHUB_ENV -Append
+        run: echo "OPUS_INCLUDE_DIR=$PWD/vcpkg_installed/x64-windows-static/include" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
+        working-directory: ${{ github.workspace }}
 
       - name: Build (release)
         run: cargo build --release --target x86_64-pc-windows-msvc
