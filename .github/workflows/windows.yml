@@ -64,6 +64,12 @@ jobs:
           restore-keys: |
             cargo-build-${{ runner.os }}-
 
+      - name: Debug vcpkg root
+        run: |
+          dir vcpkg
+          dir vcpkg\installed
+        shell: pwsh
+
       - name: Debug Opus include path
         run: |
           dir vcpkg\installed\x64-windows-static\include
