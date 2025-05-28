@@ -42,7 +42,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Set VCPKG_ROOT environment variable
-        run: echo "VCPKG_ROOT=$PWD/vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+        run: echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
 
       - name: Download sciter.dll
