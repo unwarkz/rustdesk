@@ -21,21 +21,23 @@ jobs:
       - name: Cache vcpkg
         uses: actions/cache@v4
         with:
+          # Paths are relative to the GITHUB_WORKSPACE
           path: |
             vcpkg/installed
             vcpkg/buildtrees
             vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-cache-${{ runner.os }}-${{ hashFiles('**/vcpkg.json', '.github/workflows/windows.yml') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-
+            vcpkg-cache-${{ runner.os }}-
 
       - name: Install vcpkg dependencies
         run: |
-          git clone https://github.com/microsoft/vcpkg
-          cd vcpkg
-          .\bootstrap-vcpkg.bat
-          # Используем classic mode (без manifest)
-          .\vcpkg.exe install opus:x64-windows-static
+          $vcpkg_dir = "${{ github.workspace }}/vcpkg"
+          if (-not (Test-Path "$vcpkg_dir/vcpkg.exe")) {
+            git clone --depth 1 https://github.com/microsoft/vcpkg $vcpkg_dir
+            & "$vcpkg_dir/bootstrap-vcpkg.bat" -disableMetrics
+          }
+          & "$vcpkg_dir/vcpkg.exe" install --triplet x64-windows-static --recurse --clean-after-build
         shell: pwsh
         working-directory: ${{ github.workspace }}
 
@@ -69,14 +71,16 @@ jobs:
 
       - name: Debug Opus include path
         run: |
-          dir vcpkg\installed\x64-windows-static\include\opus
+          $expected_include_path = "${{ github.workspace }}/vcpkg/installed/x64-windows-static/include"
+          Write-Host "Checking Opus include path: $expected_include_path"
+          Get-ChildItem $expected_include_path -ErrorAction SilentlyContinue
+          Write-Host "Checking for opus subdirectory: $expected_include_path/opus"
+          Get-ChildItem "$expected_include_path/opus" -ErrorAction SilentlyContinue
         shell: pwsh
 
-      - name: Set OPUS_INCLUDE_DIR environment variable
-        run: echo "OPUS_INCLUDE_DIR=$PWD/vcpkg/installed/x64-windows-static/include" | Out-File -FilePath $env:GITHUB_ENV -Append
-        shell: pwsh
-        working-directory: ${{ github.workspace }}
-
+      # The OPUS_INCLUDE_DIR environment variable is no longer explicitly set.
+      # The magnum-opus build script should find Opus headers and libraries
+      # using VCPKG_ROOT (set to ${{ github.workspace }}/vcpkg) and its default logic.
       - name: Build (release)
         run: cargo build --release --target x86_64-pc-windows-msvc
 
