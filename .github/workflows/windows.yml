@@ -22,7 +22,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            vcpkg_installed
+            vcpkg/installed
             vcpkg/buildtrees
             vcpkg/downloads
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
@@ -34,7 +34,8 @@ jobs:
           git clone https://github.com/microsoft/vcpkg
           cd vcpkg
           .\bootstrap-vcpkg.bat
-          .\vcpkg.exe install --triplet x64-windows-static
+          # Используем classic mode (без manifest)
+          .\vcpkg.exe install opus:x64-windows-static
         shell: pwsh
         working-directory: ${{ github.workspace }}
 
@@ -68,11 +69,11 @@ jobs:
 
       - name: Debug Opus include path
         run: |
-          dir vcpkg_installed\x64-windows-static\include
+          dir vcpkg\installed\x64-windows-static\include\opus
         shell: pwsh
 
       - name: Set OPUS_INCLUDE_DIR environment variable
-        run: echo "OPUS_INCLUDE_DIR=$PWD/vcpkg_installed/x64-windows-static/include" | Out-File -FilePath $env:GITHUB_ENV -Append
+        run: echo "OPUS_INCLUDE_DIR=$PWD/vcpkg/installed/x64-windows-static/include" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
         working-directory: ${{ github.workspace }}
 
