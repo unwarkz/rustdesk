@@ -81,9 +81,12 @@ done
 
 # Create ICO file with all sizes
 echo "Creating icon.ico..."
+# Note: PNG_FILES is intentionally unquoted to allow word splitting for multiple file arguments
 if command -v convert &> /dev/null; then
+    # shellcheck disable=SC2086
     convert $PNG_FILES icon.ico
 elif command -v magick &> /dev/null; then
+    # shellcheck disable=SC2086
     magick convert $PNG_FILES icon.ico
 else
     echo "Error: ImageMagick not found for ICO creation"
