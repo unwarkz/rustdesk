@@ -2189,7 +2189,7 @@ class _AboutState extends State<_About> {
       final scrollController = ScrollController();
       return SingleChildScrollView(
         controller: scrollController,
-        child: _Card(title: translate('About RustDesk'), children: [
+        child: _Card(title: 'About FixIT.kz Connect', children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2216,12 +2216,16 @@ class _AboutState extends State<_About> {
                   ).marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com');
+                    launchUrlString('https://fixit.kz');
                   },
                   child: Text(
-                    translate('Website'),
+                    'Fixit.kz Website',
                     style: linkStyle,
                   ).marginSymmetric(vertical: 4.0)),
+              Text(
+                'Built on RustDesk',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ).marginSymmetric(vertical: 4.0),
               Container(
                 decoration: const BoxDecoration(color: Color(0xFF2c8cff)),
                 padding:
