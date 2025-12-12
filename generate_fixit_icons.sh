@@ -100,8 +100,12 @@ for size in "${LINUX_SIZES[@]}"; do
 done
 
 # Copy scalable SVG
-cp "$ICON_SVG" "res/scalable.svg"
-echo -e "${GREEN}  ✓ Copied scalable SVG: res/scalable.svg${NC}"
+if [ "$ICON_SVG" != "res/scalable.svg" ]; then
+    cp "$ICON_SVG" "res/scalable.svg"
+    echo -e "${GREEN}  ✓ Copied scalable SVG: res/scalable.svg${NC}"
+else
+    echo -e "${GREEN}  ✓ Scalable SVG already in place: res/scalable.svg${NC}"
+fi
 
 # Generate @2x variants for high DPI
 generate_icon 256 "res/128x128@2x.png" true
