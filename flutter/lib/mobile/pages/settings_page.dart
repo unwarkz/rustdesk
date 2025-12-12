@@ -1034,9 +1034,22 @@ void showThemeSettings(OverlayDialogManager dialogManager) async {
 void showAbout(OverlayDialogManager dialogManager) {
   dialogManager.show((setState, close, context) {
     return CustomAlertDialog(
-      title: Text(translate('About RustDesk')),
+      title: Text('About FixIT.kz Connect'),
       content: Wrap(direction: Axis.vertical, spacing: 12, children: [
         Text('Version: $version'),
+        InkWell(
+            onTap: () async {
+              const url = 'https://fixit.kz';
+              await launchUrl(Uri.parse(url));
+            },
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Fixit.kz Website',
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                  )),
+            )),
+        Text('Built on RustDesk'),
         InkWell(
             onTap: () async {
               const url = 'https://rustdesk.com/';
