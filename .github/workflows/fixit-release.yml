@@ -1,0 +1,513 @@
+name: FixIT Connect v1.4.4 Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name'
+        required: false
+        default: 'fixit-v1.4.4'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: "1.75"
+  MAC_RUST_VERSION: "1.81"
+  FLUTTER_VERSION: "3.24.5"
+  VERSION: "1.4.4"
+  TAG_NAME: ${{ github.event.inputs.tag_name || 'fixit-v1.4.4' }}
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
+  NDK_VERSION: "r27c"
+
+jobs:
+  generate-bridge:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ gcc git curl wget nasm yasm libgtk-3-dev clang cmake libclang-dev ninja-build llvm-dev libclang-10-dev llvm-10-dev pkg-config
+
+      - name: Generate bridge
+        run: |
+          cd flutter
+          flutter pub get
+          cd ..
+          cargo install flutter_rust_bridge_codegen --version 1.80.1
+          flutter_rust_bridge_codegen --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-artifact
+          path: |
+            flutter/lib/generated_bridge.dart
+            src/bridge_generated.rs
+
+  # ===========================================
+  # Windows Build
+  # ===========================================
+  build-windows:
+    needs: generate-bridge
+    runs-on: windows-2022
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-pc-windows-msvc
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install vcpkg dependencies
+        run: |
+          $ErrorActionPreference = "Stop"
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git checkout ${{ env.VCPKG_COMMIT_ID }}
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe install libvpx:x64-windows-static libyuv:x64-windows-static opus:x64-windows-static aom:x64-windows-static
+          echo "VCPKG_ROOT=$PWD" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install ImageMagick (for icon generation)
+        run: |
+          choco install imagemagick -y
+
+      - name: Generate icons
+        shell: bash
+        run: |
+          bash generate_fixit_icons.sh
+
+      - name: Build Flutter Windows
+        run: |
+          cd flutter
+          flutter config --enable-windows-desktop
+          flutter pub get
+          python ..\build.py --flutter --skip-cargo-build
+          cd ..
+
+      - name: Build Rust
+        run: |
+          cargo build --release --features flutter
+
+      - name: Package Windows artifacts
+        run: |
+          mkdir -p release-windows
+          cp target/release/rustdesk.exe release-windows/fixit-connect.exe
+          cp -r flutter/build/windows/runner/Release/* release-windows/ || true
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixit-connect-windows-x64
+          path: release-windows/
+
+  # ===========================================
+  # Linux Build
+  # ===========================================
+  build-linux:
+    needs: generate-bridge
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            g++ gcc git curl wget nasm yasm libgtk-3-dev \
+            clang cmake libclang-dev ninja-build llvm-dev \
+            libclang-10-dev llvm-10-dev pkg-config \
+            libasound2-dev libpulse-dev \
+            libxcb-randr0-dev libxdo-dev libxfixes-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libudev-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libpam0g-dev libayatana-appindicator3-dev \
+            imagemagick inkscape
+
+      - name: Install vcpkg dependencies
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git checkout ${{ env.VCPKG_COMMIT_ID }}
+          ./bootstrap-vcpkg.sh
+          ./vcpkg install libvpx libyuv opus aom
+          echo "VCPKG_ROOT=$PWD" >> $GITHUB_ENV
+
+      - name: Generate icons
+        run: |
+          bash generate_fixit_icons.sh
+
+      - name: Build Flutter Linux
+        run: |
+          cd flutter
+          flutter config --enable-linux-desktop
+          flutter pub get
+          python3 ../build.py --flutter --skip-cargo-build
+          cd ..
+
+      - name: Build Rust
+        run: |
+          cargo build --release --features flutter
+
+      - name: Create Linux package structure
+        run: |
+          mkdir -p release-linux/usr/bin
+          mkdir -p release-linux/usr/share/applications
+          mkdir -p release-linux/usr/share/icons/hicolor/16x16/apps
+          mkdir -p release-linux/usr/share/icons/hicolor/32x32/apps
+          mkdir -p release-linux/usr/share/icons/hicolor/48x48/apps
+          mkdir -p release-linux/usr/share/icons/hicolor/64x64/apps
+          mkdir -p release-linux/usr/share/icons/hicolor/128x128/apps
+          mkdir -p release-linux/usr/share/icons/hicolor/256x256/apps
+          mkdir -p release-linux/usr/share/icons/hicolor/scalable/apps
+          
+          # Copy binary
+          cp target/release/rustdesk release-linux/usr/bin/fixit-connect
+          
+          # Copy desktop file
+          cp res/fixit-connect.desktop release-linux/usr/share/applications/
+          
+          # Copy icons
+          cp res/16x16.png release-linux/usr/share/icons/hicolor/16x16/apps/fixit-connect.png
+          cp res/32x32.png release-linux/usr/share/icons/hicolor/32x32/apps/fixit-connect.png
+          cp res/48x48.png release-linux/usr/share/icons/hicolor/48x48/apps/fixit-connect.png
+          cp res/64x64.png release-linux/usr/share/icons/hicolor/64x64/apps/fixit-connect.png
+          cp res/128x128.png release-linux/usr/share/icons/hicolor/128x128/apps/fixit-connect.png
+          cp res/256x256.png release-linux/usr/share/icons/hicolor/256x256/apps/fixit-connect.png
+          cp res/scalable.svg release-linux/usr/share/icons/hicolor/scalable/apps/fixit-connect.svg
+
+      - name: Create tarball
+        run: |
+          cd release-linux
+          tar -czf ../fixit-connect-linux-x64.tar.gz .
+          cd ..
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixit-connect-linux-x64
+          path: fixit-connect-linux-x64.tar.gz
+
+  # ===========================================
+  # Android Build
+  # ===========================================
+  build-android:
+    needs: generate-bridge
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick inkscape
+
+      - name: Setup Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-${{ env.NDK_VERSION }}-linux.zip
+          unzip -q android-ndk-${{ env.NDK_VERSION }}-linux.zip
+          echo "ANDROID_NDK_HOME=$PWD/android-ndk-${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$PWD/android-ndk-${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+
+      - name: Install cargo-ndk
+        run: |
+          cargo install cargo-ndk --version 3.1.2
+
+      - name: Add Android targets
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+
+      - name: Generate icons
+        run: |
+          bash generate_fixit_icons.sh
+
+      - name: Build Android
+        run: |
+          cd flutter
+          flutter pub get
+          flutter build apk --release --target-platform android-arm64
+
+      - name: Rename APK
+        run: |
+          cp flutter/build/app/outputs/flutter-apk/app-release.apk fixit-connect-android-arm64.apk
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixit-connect-android-arm64
+          path: fixit-connect-android-arm64.apk
+
+  # ===========================================
+  # iOS Build
+  # ===========================================
+  build-ios:
+    needs: generate-bridge
+    runs-on: macos-13
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.MAC_RUST_VERSION }}
+          targets: aarch64-apple-ios,x86_64-apple-ios
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          brew install imagemagick
+
+      - name: Generate icons
+        run: |
+          bash generate_fixit_icons.sh
+
+      - name: Build iOS (no signing)
+        run: |
+          cd flutter
+          flutter pub get
+          flutter build ios --release --no-codesign
+
+      - name: Create IPA
+        run: |
+          mkdir -p Payload
+          cp -r flutter/build/ios/iphoneos/Runner.app Payload/
+          zip -r fixit-connect-ios.ipa Payload
+
+      - name: Upload iOS IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixit-connect-ios
+          path: fixit-connect-ios.ipa
+
+  # ===========================================
+  # macOS Build
+  # ===========================================
+  build-macos:
+    needs: generate-bridge
+    runs-on: macos-13
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.MAC_RUST_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          brew install imagemagick
+
+      - name: Install vcpkg dependencies
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git checkout ${{ env.VCPKG_COMMIT_ID }}
+          ./bootstrap-vcpkg.sh
+          ./vcpkg install libvpx libyuv opus aom
+          echo "VCPKG_ROOT=$PWD" >> $GITHUB_ENV
+
+      - name: Generate icons
+        run: |
+          bash generate_fixit_icons.sh
+
+      - name: Build Flutter macOS
+        run: |
+          cd flutter
+          flutter config --enable-macos-desktop
+          flutter pub get
+          python3 ../build.py --flutter --skip-cargo-build
+          cd ..
+
+      - name: Build Rust
+        run: |
+          cargo build --release --features flutter
+
+      - name: Create DMG
+        run: |
+          # Create a simple directory-based package
+          mkdir -p "FixIT Connect.app/Contents/MacOS"
+          mkdir -p "FixIT Connect.app/Contents/Resources"
+          cp target/release/rustdesk "FixIT Connect.app/Contents/MacOS/fixit-connect"
+          cp res/icon.png "FixIT Connect.app/Contents/Resources/AppIcon.png"
+          
+          # Create Info.plist
+          cat > "FixIT Connect.app/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>fixit-connect</string>
+              <key>CFBundleIdentifier</key>
+              <string>kz.fixit.connect</string>
+              <key>CFBundleName</key>
+              <string>FixIT Connect</string>
+              <key>CFBundleVersion</key>
+              <string>1.4.4</string>
+          </dict>
+          </plist>
+          EOF
+          
+          # Create DMG
+          hdiutil create -volname "FixIT Connect" -srcfolder "FixIT Connect.app" -ov -format UDZO fixit-connect-macos.dmg
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixit-connect-macos
+          path: fixit-connect-macos.dmg
+
+  # ===========================================
+  # Create GitHub Release
+  # ===========================================
+  create-release:
+    needs: [build-windows, build-linux, build-android, build-ios, build-macos]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: FixIT Connect v1.4.4
+          body: |
+            # FixIT Connect v1.4.4
+            
+            Cross-platform remote desktop application built on RustDesk.
+            
+            ## Downloads
+            
+            - **Windows**: fixit-connect-windows-x64
+            - **Linux**: fixit-connect-linux-x64.tar.gz
+            - **Android**: fixit-connect-android-arm64.apk
+            - **iOS**: fixit-connect-ios.ipa (requires sideloading, not signed)
+            - **macOS**: fixit-connect-macos.dmg (not signed)
+            
+            ## Features
+            
+            - Remote desktop control
+            - File transfer
+            - Built on open-source RustDesk
+            - Visit https://fixit.kz for more information
+            
+            ## Notes
+            
+            - No code signing applied
+            - Manual installation required on some platforms
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/fixit-connect-windows-x64/**/*
+            artifacts/fixit-connect-linux-x64/**/*
+            artifacts/fixit-connect-android-arm64/**/*
+            artifacts/fixit-connect-ios/**/*
+            artifacts/fixit-connect-macos/**/*
