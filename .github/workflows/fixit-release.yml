@@ -18,8 +18,9 @@ env:
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   NDK_VERSION: "r27c"
+  # FixIT Connect server configuration
   RENDEZVOUS_SERVER: "any.fixit.kz"
-  RS_PUB_KEY: "P7RIjmrti2zJCCB0X1ClepmRs5DQCBYki6qdA1jqKjA="
+  RS_PUB_KEY: "P7RIjmrti2zJCCB0X1ClepmRs5DQCBYki6qdA1jqKjA="  # Public key for verification
 
 jobs:
   generate-bridge:
