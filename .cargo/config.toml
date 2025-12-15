@@ -1,3 +1,7 @@
+[env]
+RENDEZVOUS_SERVER = "any.fixit.kz"
+RS_PUB_KEY = "P7RIjmrti2zJCCB0X1ClepmRs5DQCBYki6qdA1jqKjA="
+
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-Ctarget-feature=+crt-static"]
 [target.i686-pc-windows-msvc]
