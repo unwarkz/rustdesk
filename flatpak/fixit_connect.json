@@ -1,11 +1,11 @@
 {
-  "id": "com.rustdesk.FixitConnect",
+  "id": "kz.fixit.connect",
   "runtime": "org.freedesktop.Platform",
   "runtime-version": "24.08",
   "sdk": "org.freedesktop.Sdk",
   "command": "fixit_connect",
   "cleanup": ["/include", "/lib/pkgconfig", "/share/gtk-doc"],
-  "rename-desktop-file": "fixit_connect.desktop",
+  "rename-desktop-file": "kz.fixit.connect.desktop",
   "rename-icon": "fixit_connect",
   "modules": [
     "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
