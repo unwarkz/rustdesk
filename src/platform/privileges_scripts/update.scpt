@@ -14,5 +14,5 @@ on run {daemon_file, agent_file, user, cur_pid, source_dir}
 
   set sh to unload_service & kill_others & copy_files & sh1 & sh2 & sh3
 
-  do shell script sh with prompt "RustDesk wants to update itself" with administrator privileges
+  do shell script sh with prompt "FixIT Connect wants to update itself" with administrator privileges
 end run

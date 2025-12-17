@@ -6,8 +6,8 @@
 post_install() {
 	# do something here
 	cp /usr/share/rustdesk/files/fixit_connect.service /etc/systemd/system/fixit_connect.service
-	cp /usr/share/rustdesk/files/rustdesk.desktop /usr/share/applications/
-	cp /usr/share/rustdesk/files/rustdesk-link.desktop /usr/share/applications/
+	cp /usr/share/rustdesk/files/fixit-connect.desktop /usr/share/applications/
+	cp /usr/share/rustdesk/files/fixit-connect-link.desktop /usr/share/applications/
 	systemctl daemon-reload
 	systemctl enable fixit_connect
 	systemctl start fixit_connect
@@ -24,8 +24,8 @@ pre_upgrade() {
 # arg 2:  the old package version
 post_upgrade() {
 	cp /usr/share/rustdesk/files/fixit_connect.service /etc/systemd/system/fixit_connect.service
-	cp /usr/share/rustdesk/files/rustdesk.desktop /usr/share/applications/
-	cp /usr/share/rustdesk/files/rustdesk-link.desktop /usr/share/applications/
+	cp /usr/share/rustdesk/files/fixit-connect.desktop /usr/share/applications/
+	cp /usr/share/rustdesk/files/fixit-connect-link.desktop /usr/share/applications/
 	systemctl daemon-reload
 	systemctl enable fixit_connect
 	systemctl start fixit_connect
@@ -41,7 +41,7 @@ pre_remove() {
 
 # arg 1:  the old package version
 post_remove() {
-	rm /usr/share/applications/rustdesk.desktop || true
-	rm /usr/share/applications/rustdesk-link.desktop || true
+	rm /usr/share/applications/fixit-connect.desktop || true
+	rm /usr/share/applications/fixit-connect-link.desktop || true
 	update-desktop-database
 }
