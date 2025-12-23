@@ -1,12 +1,12 @@
 {
-  "id": "com.rustdesk.RustDesk",
+  "id": "kz.fixit.connect",
   "runtime": "org.freedesktop.Platform",
   "runtime-version": "24.08",
   "sdk": "org.freedesktop.Sdk",
-  "command": "rustdesk",
+  "command": "fixit_connect",
   "cleanup": ["/include", "/lib/pkgconfig", "/share/gtk-doc"],
-  "rename-desktop-file": "rustdesk.desktop",
-  "rename-icon": "rustdesk",
+  "rename-desktop-file": "kz.fixit.connect.desktop",
+  "rename-icon": "fixit_connect",
   "modules": [
     "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
     {
@@ -34,7 +34,7 @@
       ]
     },
     {
-      "name": "rustdesk",
+      "name": "fixit_connect",
       "buildsystem": "simple",
       "build-commands": [
         "bsdtar -Oxf rustdesk.deb data.tar.xz | bsdtar -xf -",

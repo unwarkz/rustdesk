@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=FixIT Connect
+NoDisplay=true
+MimeType=x-scheme-handler/fixit-connect;
+TryExec=fixit-connect
+Exec=fixit-connect %u
+Icon=fixit-connect
+Terminal=false
+Type=Application
+StartupNotify=false
+StartupWMClass=fixit-connect

@@ -26,19 +26,19 @@ The best open-source remote desktop client software, written in Rust.
 
 mkdir -p "%{buildroot}/usr/share/rustdesk" && cp -r ${HBB}/flutter/build/linux/x64/release/bundle/* -t "%{buildroot}/usr/share/rustdesk"
 mkdir -p "%{buildroot}/usr/bin"
-install -Dm 644 $HBB/res/rustdesk.service -t "%{buildroot}/usr/share/rustdesk/files"
-install -Dm 644 $HBB/res/rustdesk.desktop -t "%{buildroot}/usr/share/rustdesk/files"
-install -Dm 644 $HBB/res/rustdesk-link.desktop -t "%{buildroot}/usr/share/rustdesk/files"
-install -Dm 644 $HBB/res/128x128@2x.png "%{buildroot}/usr/share/icons/hicolor/256x256/apps/rustdesk.png"
-install -Dm 644 $HBB/res/scalable.svg "%{buildroot}/usr/share/icons/hicolor/scalable/apps/rustdesk.svg"
+install -Dm 644 $HBB/res/fixit_connect.service -t "%{buildroot}/usr/share/rustdesk/files"
+install -Dm 644 $HBB/res/fixit-connect.desktop -t "%{buildroot}/usr/share/rustdesk/files"
+install -Dm 644 $HBB/res/fixit-connect-link.desktop -t "%{buildroot}/usr/share/rustdesk/files"
+install -Dm 644 $HBB/res/128x128@2x.png "%{buildroot}/usr/share/icons/hicolor/256x256/apps/fixit-connect.png"
+install -Dm 644 $HBB/res/scalable.svg "%{buildroot}/usr/share/icons/hicolor/scalable/apps/fixit-connect.svg"
 
 %files
 /usr/share/rustdesk/*
-/usr/share/rustdesk/files/rustdesk.service
-/usr/share/icons/hicolor/256x256/apps/rustdesk.png
-/usr/share/icons/hicolor/scalable/apps/rustdesk.svg
-/usr/share/rustdesk/files/rustdesk.desktop
-/usr/share/rustdesk/files/rustdesk-link.desktop
+/usr/share/rustdesk/files/fixit_connect.service
+/usr/share/icons/hicolor/256x256/apps/fixit-connect.png
+/usr/share/icons/hicolor/scalable/apps/fixit-connect.svg
+/usr/share/rustdesk/files/fixit-connect.desktop
+/usr/share/rustdesk/files/fixit-connect-link.desktop
 
 %changelog
 # let's skip this for now
@@ -51,27 +51,27 @@ case "$1" in
   ;;
   2)
     # for upgrade
-    systemctl stop rustdesk || true
+    systemctl stop fixit_connect || true
   ;;
 esac
 
 %post
-cp /usr/share/rustdesk/files/rustdesk.service /etc/systemd/system/rustdesk.service
-cp /usr/share/rustdesk/files/rustdesk.desktop /usr/share/applications/
-cp /usr/share/rustdesk/files/rustdesk-link.desktop /usr/share/applications/
+cp /usr/share/rustdesk/files/fixit_connect.service /etc/systemd/system/fixit_connect.service
+cp /usr/share/rustdesk/files/fixit-connect.desktop /usr/share/applications/
+cp /usr/share/rustdesk/files/fixit-connect-link.desktop /usr/share/applications/
 ln -sf /usr/share/rustdesk/rustdesk /usr/bin/rustdesk
 systemctl daemon-reload
-systemctl enable rustdesk
-systemctl start rustdesk
+systemctl enable fixit_connect
+systemctl start fixit_connect
 update-desktop-database
 
 %preun
 case "$1" in
   0)
     # for uninstall
-    systemctl stop rustdesk || true
-    systemctl disable rustdesk || true
-    rm /etc/systemd/system/rustdesk.service || true
+    systemctl stop fixit_connect || true
+    systemctl disable fixit_connect || true
+    rm /etc/systemd/system/fixit_connect.service || true
   ;;
   1)
     # for upgrade
@@ -86,8 +86,8 @@ case "$1" in
     rmdir /usr/lib/rustdesk || true
     rmdir /usr/local/rustdesk || true
     rmdir /usr/share/rustdesk || true
-    rm /usr/share/applications/rustdesk.desktop || true
-    rm /usr/share/applications/rustdesk-link.desktop || true
+    rm /usr/share/applications/fixit-connect.desktop || true
+    rm /usr/share/applications/fixit-connect-link.desktop || true
     update-desktop-database
   ;;
   1)
