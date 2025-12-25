@@ -2033,6 +2033,7 @@ jobs:
 
           if [ -d flutter/web ]; then
             pushd flutter/web
+            echo "Using upstream rustdesk web dependencies for FixIT Connect web build"
             if ! wget https://github.com/rustdesk/doc.rustdesk.com/releases/download/console/web_deps.tar.gz; then
               echo "Failed to download web_deps.tar.gz"
             elif ! tar xzf web_deps.tar.gz; then

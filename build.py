@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 import textwrap
 
+CUSTOM_CONFIG = '{"app-name":"FixIT Connect"}'
+
 windows = platform.platform().startswith('Windows')
 osx = platform.platform().startswith(
     'Darwin') or platform.platform().startswith("macOS")
@@ -38,6 +40,19 @@ def get_deb_extra_depends() -> str:
     if custom_arch == "armhf": # for arm32v7 libsciter-gtk.so
         return ", libatomic1"
     return ""
+
+
+def ensure_fixit_binary(dir_path: str) -> str:
+    fixit_path = os.path.join(dir_path, 'fixit_connect')
+    rustdesk_path = os.path.join(dir_path, 'rustdesk')
+    if not os.path.exists(fixit_path) and os.path.exists(rustdesk_path):
+        os.replace(rustdesk_path, fixit_path)
+    return fixit_path
+
+
+def write_custom_config(dir_path: str):
+    with open(os.path.join(dir_path, 'custom.txt'), 'w', encoding='utf-8') as f:
+        f.write(CUSTOM_CONFIG)
 
 def system2(cmd):
     exit_code = os.system(cmd)
@@ -294,18 +309,18 @@ def generate_control_file(version):
     system2('/bin/rm -rf %s' % control_file_path)
 
     content = textwrap.dedent("""\
-        Package: fixit-connect
-        Section: net
-        Priority: optional
-        Version: %s
-        Architecture: %s
-        Maintainer: FixIT Connect <support@fixit.kz>
-        Homepage: https://fixit.kz
-        Depends: libgtk-3-0, libxcb-randr0, libxdo3, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire%s
-        Recommends: libayatana-appindicator3-1
-        Description: FixIT Connect remote control software.
+    Package: fixit-connect
+    Section: net
+    Priority: optional
+    Version: %s
+    Architecture: %s
+    Maintainer: FixIT Connect <support@fixit.kz>
+    Homepage: https://fixit.kz
+    Depends: libgtk-3-0, libxcb-randr0, libxdo3, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire%s
+    Recommends: libayatana-appindicator3-1
+    Description: FixIT Connect remote control software.
 
-        """) % (version, get_deb_arch(), get_deb_extra_depends())
+    """) % (version, get_deb_arch(), get_deb_extra_depends())
     file = open(control_file_path, "w")
     file.write(content)
     file.close()
@@ -335,10 +350,8 @@ def build_flutter_deb(version, features):
     system2('rm tmpdeb/usr/bin/fixit_connect || true')
     system2(
         f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/fixit_connect/')
-    if not os.path.exists('tmpdeb/usr/share/fixit_connect/fixit_connect') and os.path.exists('tmpdeb/usr/share/fixit_connect/rustdesk'):
-        os.replace('tmpdeb/usr/share/fixit_connect/rustdesk', 'tmpdeb/usr/share/fixit_connect/fixit_connect')
-    with open('tmpdeb/usr/share/fixit_connect/custom.txt', 'w', encoding='utf-8') as f:
-        f.write('{"app-name":"FixIT Connect"}')
+    ensure_fixit_binary('tmpdeb/usr/share/fixit_connect')
+    write_custom_config('tmpdeb/usr/share/fixit_connect')
     system2('cp tmpdeb/usr/share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit_connect')
     system2('ln -sf ../share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit-connect')
     system2(
@@ -364,11 +377,11 @@ def build_flutter_deb(version, features):
     generate_control_file(version)
     system2('cp -a ../res/DEBIAN/* tmpdeb/DEBIAN/')
     md5_file_folder("tmpdeb/")
-    system2('dpkg-deb -b tmpdeb rustdesk.deb;')
+    system2('dpkg-deb -b tmpdeb fixit_connect.deb;')
 
     system2('/bin/rm -rf tmpdeb/')
     system2('/bin/rm -rf ../res/DEBIAN/control')
-    os.rename('rustdesk.deb', '../fixit_connect-%s.deb' % version)
+    os.rename('fixit_connect.deb', '../fixit_connect-%s.deb' % version)
     os.chdir("..")
 
 
@@ -384,10 +397,8 @@ def build_deb_from_folder(version, binary_folder):
     system2('rm tmpdeb/usr/bin/fixit_connect || true')
     system2(
         f'cp -r ../{binary_folder}/* tmpdeb/usr/share/fixit_connect/')
-    if not os.path.exists('tmpdeb/usr/share/fixit_connect/fixit_connect') and os.path.exists('tmpdeb/usr/share/fixit_connect/rustdesk'):
-        os.replace('tmpdeb/usr/share/fixit_connect/rustdesk', 'tmpdeb/usr/share/fixit_connect/fixit_connect')
-    with open('tmpdeb/usr/share/fixit_connect/custom.txt', 'w', encoding='utf-8') as f:
-        f.write('{"app-name":"FixIT Connect"}')
+    ensure_fixit_binary('tmpdeb/usr/share/fixit_connect')
+    write_custom_config('tmpdeb/usr/share/fixit_connect')
     system2('cp tmpdeb/usr/share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit_connect')
     system2('ln -sf ../share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit-connect')
     system2(
@@ -407,11 +418,11 @@ def build_deb_from_folder(version, binary_folder):
     generate_control_file(version)
     system2('cp -a ../res/DEBIAN/* tmpdeb/DEBIAN/')
     md5_file_folder("tmpdeb/")
-    system2('dpkg-deb -b tmpdeb rustdesk.deb;')
+    system2('dpkg-deb -b tmpdeb fixit_connect.deb;')
 
     system2('/bin/rm -rf tmpdeb/')
     system2('/bin/rm -rf ../res/DEBIAN/control')
-    os.rename('rustdesk.deb', '../fixit_connect-%s.deb' % version)
+    os.rename('fixit_connect.deb', '../fixit_connect-%s.deb' % version)
     os.chdir("..")
 
 
@@ -458,8 +469,7 @@ def build_flutter_windows(version, features, skip_portable_pack):
     exe_dst = os.path.join(flutter_build_dir_2, 'fixit_connect.exe')
     if os.path.exists(exe_src):
         os.replace(exe_src, exe_dst)
-    with open(os.path.join(flutter_build_dir_2, 'custom.txt'), 'w', encoding='utf-8') as f:
-        f.write('{"app-name":"FixIT Connect"}')
+    write_custom_config(flutter_build_dir_2)
     shutil.copy2('target/release/deps/dylib_virtual_display.dll',
                  flutter_build_dir_2)
     if skip_portable_pack:
