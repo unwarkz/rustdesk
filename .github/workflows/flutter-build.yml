@@ -2033,8 +2033,11 @@ jobs:
 
           if [ -d flutter/web ]; then
             pushd flutter/web
-            wget https://github.com/rustdesk/doc.rustdesk.com/releases/download/console/web_deps.tar.gz || true
-            tar xzf web_deps.tar.gz || true
+            if ! wget https://github.com/rustdesk/doc.rustdesk.com/releases/download/console/web_deps.tar.gz; then
+              echo "Failed to download web_deps.tar.gz"
+            elif ! tar xzf web_deps.tar.gz; then
+              echo "Failed to extract web_deps.tar.gz"
+            fi
             popd
           fi
 
