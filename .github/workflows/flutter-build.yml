@@ -247,7 +247,7 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
+          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/fixit_connect.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/fixit_connect-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
@@ -259,7 +259,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          python preprocess.py --arp -d ../../rustdesk --app-name "FixIT Connect" --install-dir-name "Fixit_connect"
           nuget restore msi.sln
           msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
           mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/fixit_connect-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
@@ -365,7 +365,8 @@ jobs:
           sed -i 's/branch = "dyn"/branch = "dyn_x86"/g' ./Cargo.toml
           cargo build --features inline,vram,hwcodec --release --bins
           mkdir -p ./Release
-          mv ./target/release/rustdesk.exe ./Release/rustdesk.exe
+          mv ./target/release/rustdesk.exe ./Release/fixit_connect.exe
+          echo '{"app-name":"FixIT Connect"}' > ./Release/custom.txt
           curl -LJ -o ./Release/sciter.dll https://github.com/c-smile/sciter-sdk/raw/master/bin.win/x32/sciter.dll
           echo "output_folder=./Release" >> $GITHUB_OUTPUT
           curl -LJ -o ./usbmmidd_v2.zip https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip
@@ -412,7 +413,7 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../Release/ -o . -e ../../Release/rustdesk.exe
+          python3 ./generate.py -f ../../Release/ -o . -e ../../Release/fixit_connect.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/fixit_connect-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
@@ -1813,7 +1814,7 @@ jobs:
             cargo build --features inline${{ matrix.job.extra_features }} --release --bins --jobs 1
             # make debian package
             mkdir -p ./Release
-            mv ./target/release/rustdesk ./Release/rustdesk
+            mv ./target/release/rustdesk ./Release/fixit_connect
             wget -O ./Release/libsciter-gtk.so https://github.com/c-smile/sciter-sdk/raw/master/bin.lnx/${{ matrix.job.sciter_arch }}/libsciter-gtk.so
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             ./build.py --package ./Release
@@ -2014,21 +2015,32 @@ jobs:
       - name: Build web
         shell: bash
         run: |
-          pushd flutter/web/js
-          npm install yarn -g
-          npm install typescript -g
-          npm install protoc -g
-          # Install protoc first, see: https://google.github.io/proto-lens/installing-protoc.html
-          npm install ts-proto
-          # Only works with vite <= 2.8, see: https://github.com/vitejs/vite/blob/main/docs/guide/build.md#chunking-strategy
-          npm install vite@2.8
-          yarn install && yarn build
-          popd
+          mkdir -p flutter/web
+          if [ -d flutter/web/js ]; then
+            pushd flutter/web/js
+            npm install yarn -g
+            npm install typescript -g
+            npm install protoc -g
+            # Install protoc first, see: https://google.github.io/proto-lens/installing-protoc.html
+            npm install ts-proto
+            # Only works with vite <= 2.8, see: https://github.com/vitejs/vite/blob/main/docs/guide/build.md#chunking-strategy
+            npm install vite@2.8
+            yarn install && yarn build
+            popd
+          else
+            echo "flutter/web/js missing, skipping JS bundling step"
+          fi
 
-          pushd flutter/web
-          wget https://github.com/rustdesk/doc.rustdesk.com/releases/download/console/web_deps.tar.gz
-          tar xzf web_deps.tar.gz
-          popd
+          if [ -d flutter/web ]; then
+            pushd flutter/web
+            echo "Using upstream rustdesk web dependencies for FixIT Connect web build"
+            if ! wget https://github.com/rustdesk/doc.rustdesk.com/releases/download/console/web_deps.tar.gz; then
+              echo "Failed to download web_deps.tar.gz; continuing without bundled deps"
+            elif ! tar xzf web_deps.tar.gz; then
+              echo "Failed to extract web_deps.tar.gz; continuing without bundled deps"
+            fi
+            popd
+          fi
 
           pushd flutter
           flutter build web --release
