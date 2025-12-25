@@ -335,6 +335,8 @@ def build_flutter_deb(version, features):
         f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/fixit_connect/')
     if not os.path.exists('tmpdeb/usr/share/fixit_connect/fixit_connect') and os.path.exists('tmpdeb/usr/share/fixit_connect/rustdesk'):
         os.replace('tmpdeb/usr/share/fixit_connect/rustdesk', 'tmpdeb/usr/share/fixit_connect/fixit_connect')
+    with open('tmpdeb/usr/share/fixit_connect/custom.txt', 'w', encoding='utf-8') as f:
+        f.write('{"app-name":"FixIT Connect"}')
     system2('cp tmpdeb/usr/share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit_connect')
     system2('ln -sf ../share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit-connect')
     system2(
@@ -382,6 +384,8 @@ def build_deb_from_folder(version, binary_folder):
         f'cp -r ../{binary_folder}/* tmpdeb/usr/share/fixit_connect/')
     if not os.path.exists('tmpdeb/usr/share/fixit_connect/fixit_connect') and os.path.exists('tmpdeb/usr/share/fixit_connect/rustdesk'):
         os.replace('tmpdeb/usr/share/fixit_connect/rustdesk', 'tmpdeb/usr/share/fixit_connect/fixit_connect')
+    with open('tmpdeb/usr/share/fixit_connect/custom.txt', 'w', encoding='utf-8') as f:
+        f.write('{"app-name":"FixIT Connect"}')
     system2('cp tmpdeb/usr/share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit_connect')
     system2('ln -sf ../share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit-connect')
     system2(
@@ -452,6 +456,8 @@ def build_flutter_windows(version, features, skip_portable_pack):
     exe_dst = os.path.join(flutter_build_dir_2, 'fixit_connect.exe')
     if os.path.exists(exe_src):
         os.replace(exe_src, exe_dst)
+    with open(os.path.join(flutter_build_dir_2, 'custom.txt'), 'w', encoding='utf-8') as f:
+        f.write('{"app-name":"FixIT Connect"}')
     shutil.copy2('target/release/deps/dylib_virtual_display.dll',
                  flutter_build_dir_2)
     if skip_portable_pack:
