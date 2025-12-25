@@ -11,8 +11,9 @@ import argparse
 import sys
 from pathlib import Path
 import textwrap
+import json
 
-CUSTOM_CONFIG = '{"app-name":"FixIT Connect"}'
+CUSTOM_CONFIG = {"app-name": "FixIT Connect"}
 
 windows = platform.platform().startswith('Windows')
 osx = platform.platform().startswith(
@@ -52,7 +53,7 @@ def ensure_fixit_binary(dir_path: str) -> str:
 
 def write_custom_config(dir_path: str):
     with open(os.path.join(dir_path, 'custom.txt'), 'w', encoding='utf-8') as f:
-        f.write(CUSTOM_CONFIG)
+        json.dump(CUSTOM_CONFIG, f)
 
 def system2(cmd):
     exit_code = os.system(cmd)
