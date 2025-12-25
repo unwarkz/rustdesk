@@ -370,7 +370,7 @@ def build_flutter_deb(version, features):
     system2(
         'cp ../res/xorg.conf tmpdeb/etc/fixit_connect/')
     system2(
-        'cp ../res/pam.d/rustdesk.debian tmpdeb/etc/pam.d/fixit_connect')
+        'cp ../res/pam.d/fixit_connect.debian tmpdeb/etc/pam.d/fixit_connect')
     system2(
         "echo \"#!/bin/sh\" >> tmpdeb/usr/share/fixit_connect/files/polkit && chmod a+x tmpdeb/usr/share/fixit_connect/files/polkit")
 
@@ -480,12 +480,8 @@ def build_flutter_windows(version, features, skip_portable_pack):
     system2(
         f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/fixit_connect.exe')
     os.chdir('../..')
-    if os.path.exists('./rustdesk_portable.exe'):
-        os.replace('./target/release/rustdesk-portable-packer.exe',
-                   './fixit_connect_portable.exe')
-    else:
-        os.rename('./target/release/rustdesk-portable-packer.exe',
-                  './fixit_connect_portable.exe')
+    os.replace('./target/release/rustdesk-portable-packer.exe',
+               './fixit_connect_portable.exe')
     print(
         f'output location: {os.path.abspath(os.curdir)}/fixit_connect_portable.exe')
     os.rename('./fixit_connect_portable.exe', f'./fixit_connect-{version}-install.exe')
@@ -652,7 +648,7 @@ def main():
                 os.system('cp res/xorg.conf tmpdeb/etc/X11/rustdesk/')
                 os.system('cp -a DEBIAN/* tmpdeb/DEBIAN/')
                 os.system('mkdir -p tmpdeb/etc/pam.d/')
-                os.system('cp pam.d/rustdesk.debian tmpdeb/etc/pam.d/rustdesk')
+                os.system('cp pam.d/fixit_connect.debian tmpdeb/etc/pam.d/fixit_connect')
                 system2('strip tmpdeb/usr/bin/rustdesk')
                 system2('mkdir -p tmpdeb/usr/share/rustdesk')
                 system2('mv tmpdeb/usr/bin/rustdesk tmpdeb/usr/share/rustdesk/')
