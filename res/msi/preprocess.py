@@ -88,6 +88,12 @@ def make_parser():
         default="PURSLANE",
         help="The app manufacturer.",
     )
+    parser.add_argument(
+        "--install-dir-name",
+        type=str,
+        default="Fixit_connect",
+        help="The installation folder name (Program Files).",
+    )
     return parser
 
 
@@ -161,6 +167,7 @@ def gen_pre_vars(args, dist_dir):
             f'{indent}<?define Product="{args.app_name}" ?>\n',
             f'{indent}<?define Description="{args.app_name} Installer" ?>\n',
             f'{indent}<?define ProductLower="{args.app_name.lower()}" ?>\n',
+            f'{indent}<?define InstallDirName="{args.install_dir_name}" ?>\n',
             f'{indent}<?define RegKeyRoot=".$(var.ProductLower)" ?>\n',
             f'{indent}<?define RegKeyInstall="$(var.RegKeyRoot)\\Install" ?>\n',
             f'{indent}<?define BuildDir="{dist_dir}" ?>\n',

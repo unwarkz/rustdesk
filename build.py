@@ -10,6 +10,10 @@ import hashlib
 import argparse
 import sys
 from pathlib import Path
+import textwrap
+import json
+
+CUSTOM_CONFIG = {"app-name": "FixIT Connect"}
 
 windows = platform.platform().startswith('Windows')
 osx = platform.platform().startswith(
@@ -37,6 +41,19 @@ def get_deb_extra_depends() -> str:
     if custom_arch == "armhf": # for arm32v7 libsciter-gtk.so
         return ", libatomic1"
     return ""
+
+
+def ensure_fixit_binary(dir_path: str) -> str:
+    fixit_path = os.path.join(dir_path, 'fixit_connect')
+    rustdesk_path = os.path.join(dir_path, 'rustdesk')
+    if not os.path.exists(fixit_path) and os.path.exists(rustdesk_path):
+        os.replace(rustdesk_path, fixit_path)
+    return fixit_path
+
+
+def write_custom_config(dir_path: str):
+    with open(os.path.join(dir_path, 'custom.txt'), 'w', encoding='utf-8') as f:
+        json.dump(CUSTOM_CONFIG, f)
 
 def system2(cmd):
     exit_code = os.system(cmd)
@@ -292,18 +309,19 @@ def generate_control_file(version):
     control_file_path = "../res/DEBIAN/control"
     system2('/bin/rm -rf %s' % control_file_path)
 
-    content = """Package: rustdesk
-Section: net
-Priority: optional
-Version: %s
-Architecture: %s
-Maintainer: rustdesk <info@rustdesk.com>
-Homepage: https://rustdesk.com
-Depends: libgtk-3-0, libxcb-randr0, libxdo3, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire%s
-Recommends: libayatana-appindicator3-1
-Description: A remote control software.
+    content = textwrap.dedent("""\
+    Package: fixit-connect
+    Section: net
+    Priority: optional
+    Version: %s
+    Architecture: %s
+    Maintainer: FixIT Connect <support@fixit.kz>
+    Homepage: https://fixit.kz
+    Depends: libgtk-3-0, libxcb-randr0, libxdo3, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire%s
+    Recommends: libayatana-appindicator3-1
+    Description: FixIT Connect remote control software.
 
-""" % (version, get_deb_arch(), get_deb_extra_depends())
+    """) % (version, get_deb_arch(), get_deb_extra_depends())
     file = open(control_file_path, "w")
     file.write(content)
     file.close()
@@ -322,19 +340,23 @@ def build_flutter_deb(version, features):
     os.chdir('flutter')
     system2('flutter build linux --release')
     system2('mkdir -p tmpdeb/usr/bin/')
-    system2('mkdir -p tmpdeb/usr/share/rustdesk')
-    system2('mkdir -p tmpdeb/etc/rustdesk/')
+    system2('mkdir -p tmpdeb/usr/share/fixit_connect')
+    system2('mkdir -p tmpdeb/etc/fixit_connect/')
     system2('mkdir -p tmpdeb/etc/pam.d/')
-    system2('mkdir -p tmpdeb/usr/share/rustdesk/files/systemd/')
+    system2('mkdir -p tmpdeb/usr/share/fixit_connect/files/systemd/')
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/256x256/apps/')
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/scalable/apps/')
     system2('mkdir -p tmpdeb/usr/share/applications/')
     system2('mkdir -p tmpdeb/usr/share/polkit-1/actions')
-    system2('rm tmpdeb/usr/bin/rustdesk || true')
+    system2('rm tmpdeb/usr/bin/fixit_connect || true')
     system2(
-        f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/rustdesk/')
+        f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/fixit_connect/')
+    ensure_fixit_binary('tmpdeb/usr/share/fixit_connect')
+    write_custom_config('tmpdeb/usr/share/fixit_connect')
+    system2('cp tmpdeb/usr/share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit_connect')
+    system2('ln -sf ../share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit-connect')
     system2(
-        'cp ../res/fixit_connect.service tmpdeb/usr/share/rustdesk/files/systemd/')
+        'cp ../res/fixit_connect.service tmpdeb/usr/share/fixit_connect/files/systemd/')
     system2(
         'cp ../res/128x128@2x.png tmpdeb/usr/share/icons/hicolor/256x256/apps/fixit-connect.png')
     system2(
@@ -344,40 +366,44 @@ def build_flutter_deb(version, features):
     system2(
         'cp ../res/fixit-connect-link.desktop tmpdeb/usr/share/applications/fixit-connect-link.desktop')
     system2(
-        'cp ../res/startwm.sh tmpdeb/etc/rustdesk/')
+        'cp ../res/startwm.sh tmpdeb/etc/fixit_connect/')
     system2(
-        'cp ../res/xorg.conf tmpdeb/etc/rustdesk/')
+        'cp ../res/xorg.conf tmpdeb/etc/fixit_connect/')
     system2(
-        'cp ../res/pam.d/rustdesk.debian tmpdeb/etc/pam.d/rustdesk')
+        'cp ../res/pam.d/fixit_connect.debian tmpdeb/etc/pam.d/fixit_connect')
     system2(
-        "echo \"#!/bin/sh\" >> tmpdeb/usr/share/rustdesk/files/polkit && chmod a+x tmpdeb/usr/share/rustdesk/files/polkit")
+        "echo \"#!/bin/sh\" >> tmpdeb/usr/share/fixit_connect/files/polkit && chmod a+x tmpdeb/usr/share/fixit_connect/files/polkit")
 
     system2('mkdir -p tmpdeb/DEBIAN')
     generate_control_file(version)
     system2('cp -a ../res/DEBIAN/* tmpdeb/DEBIAN/')
     md5_file_folder("tmpdeb/")
-    system2('dpkg-deb -b tmpdeb rustdesk.deb;')
+    system2('dpkg-deb -b tmpdeb fixit_connect.deb;')
 
     system2('/bin/rm -rf tmpdeb/')
     system2('/bin/rm -rf ../res/DEBIAN/control')
-    os.rename('rustdesk.deb', '../rustdesk-%s.deb' % version)
+    os.rename('fixit_connect.deb', '../fixit_connect-%s.deb' % version)
     os.chdir("..")
 
 
 def build_deb_from_folder(version, binary_folder):
     os.chdir('flutter')
     system2('mkdir -p tmpdeb/usr/bin/')
-    system2('mkdir -p tmpdeb/usr/share/rustdesk')
-    system2('mkdir -p tmpdeb/usr/share/rustdesk/files/systemd/')
+    system2('mkdir -p tmpdeb/usr/share/fixit_connect')
+    system2('mkdir -p tmpdeb/usr/share/fixit_connect/files/systemd/')
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/256x256/apps/')
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/scalable/apps/')
     system2('mkdir -p tmpdeb/usr/share/applications/')
     system2('mkdir -p tmpdeb/usr/share/polkit-1/actions')
-    system2('rm tmpdeb/usr/bin/rustdesk || true')
+    system2('rm tmpdeb/usr/bin/fixit_connect || true')
     system2(
-        f'cp -r ../{binary_folder}/* tmpdeb/usr/share/rustdesk/')
+        f'cp -r ../{binary_folder}/* tmpdeb/usr/share/fixit_connect/')
+    ensure_fixit_binary('tmpdeb/usr/share/fixit_connect')
+    write_custom_config('tmpdeb/usr/share/fixit_connect')
+    system2('cp tmpdeb/usr/share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit_connect')
+    system2('ln -sf ../share/fixit_connect/fixit_connect tmpdeb/usr/bin/fixit-connect')
     system2(
-        'cp ../res/fixit_connect.service tmpdeb/usr/share/rustdesk/files/systemd/')
+        'cp ../res/fixit_connect.service tmpdeb/usr/share/fixit_connect/files/systemd/')
     system2(
         'cp ../res/128x128@2x.png tmpdeb/usr/share/icons/hicolor/256x256/apps/fixit-connect.png')
     system2(
@@ -387,17 +413,17 @@ def build_deb_from_folder(version, binary_folder):
     system2(
         'cp ../res/fixit-connect-link.desktop tmpdeb/usr/share/applications/fixit-connect-link.desktop')
     system2(
-        "echo \"#!/bin/sh\" >> tmpdeb/usr/share/rustdesk/files/polkit && chmod a+x tmpdeb/usr/share/rustdesk/files/polkit")
+        "echo \"#!/bin/sh\" >> tmpdeb/usr/share/fixit_connect/files/polkit && chmod a+x tmpdeb/usr/share/fixit_connect/files/polkit")
 
     system2('mkdir -p tmpdeb/DEBIAN')
     generate_control_file(version)
     system2('cp -a ../res/DEBIAN/* tmpdeb/DEBIAN/')
     md5_file_folder("tmpdeb/")
-    system2('dpkg-deb -b tmpdeb rustdesk.deb;')
+    system2('dpkg-deb -b tmpdeb fixit_connect.deb;')
 
     system2('/bin/rm -rf tmpdeb/')
     system2('/bin/rm -rf ../res/DEBIAN/control')
-    os.rename('rustdesk.deb', '../rustdesk-%s.deb' % version)
+    os.rename('fixit_connect.deb', '../fixit_connect-%s.deb' % version)
     os.chdir("..")
 
 
@@ -440,6 +466,11 @@ def build_flutter_windows(version, features, skip_portable_pack):
     os.chdir('flutter')
     system2('flutter build windows --release')
     os.chdir('..')
+    exe_src = os.path.join(flutter_build_dir_2, 'rustdesk.exe')
+    exe_dst = os.path.join(flutter_build_dir_2, 'fixit_connect.exe')
+    if os.path.exists(exe_src):
+        os.replace(exe_src, exe_dst)
+    write_custom_config(flutter_build_dir_2)
     shutil.copy2('target/release/deps/dylib_virtual_display.dll',
                  flutter_build_dir_2)
     if skip_portable_pack:
@@ -447,19 +478,15 @@ def build_flutter_windows(version, features, skip_portable_pack):
     os.chdir('libs/portable')
     system2('pip3 install -r requirements.txt')
     system2(
-        f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/rustdesk.exe')
+        f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/fixit_connect.exe')
     os.chdir('../..')
-    if os.path.exists('./rustdesk_portable.exe'):
-        os.replace('./target/release/rustdesk-portable-packer.exe',
-                   './rustdesk_portable.exe')
-    else:
-        os.rename('./target/release/rustdesk-portable-packer.exe',
-                  './rustdesk_portable.exe')
+    os.replace('./target/release/rustdesk-portable-packer.exe',
+               './fixit_connect_portable.exe')
     print(
-        f'output location: {os.path.abspath(os.curdir)}/rustdesk_portable.exe')
-    os.rename('./rustdesk_portable.exe', f'./rustdesk-{version}-install.exe')
+        f'output location: {os.path.abspath(os.curdir)}/fixit_connect_portable.exe')
+    os.rename('./fixit_connect_portable.exe', f'./fixit_connect-{version}-install.exe')
     print(
-        f'output location: {os.path.abspath(os.curdir)}/rustdesk-{version}-install.exe')
+        f'output location: {os.path.abspath(os.curdir)}/fixit_connect-{version}-install.exe')
 
 
 def main():
@@ -497,22 +524,22 @@ def main():
             return
         system2('cargo build --release --features ' + features)
         # system2('upx.exe target/release/rustdesk.exe')
-        system2('mv target/release/rustdesk.exe target/release/RustDesk.exe')
+        system2('mv target/release/rustdesk.exe target/release/fixit_connect.exe')
         pa = os.environ.get('P')
         if pa:
             # https://certera.com/kb/tutorial-guide-for-safenet-authentication-client-for-code-signing/
             system2(
                 f'signtool sign /a /v /p {pa} /debug /f .\\cert.pfx /t http://timestamp.digicert.com  '
-                'target\\release\\rustdesk.exe')
+                'target\\release\\fixit_connect.exe')
         else:
             print('Not signed')
         system2(
-            f'cp -rf target/release/RustDesk.exe {res_dir}')
+            f'cp -rf target/release/fixit_connect.exe {res_dir}')
         os.chdir('libs/portable')
         system2('pip3 install -r requirements.txt')
         system2(
-            f'python3 ./generate.py -f ../../{res_dir} -o . -e ../../{res_dir}/rustdesk-{version}-win7-install.exe')
-        system2('mv ../../{res_dir}/rustdesk-{version}-win7-install.exe ../..')
+            f'python3 ./generate.py -f ../../{res_dir} -o . -e ../../{res_dir}/fixit_connect-{version}-win7-install.exe')
+        system2('mv ../../{res_dir}/fixit_connect-{version}-win7-install.exe ../..')
     elif os.path.isfile('/usr/bin/pacman'):
         # pacman -S -needed base-devel
         system2("sed -i 's/pkgver=.*/pkgver=%s/g' res/PKGBUILD" % version)
@@ -621,7 +648,7 @@ def main():
                 os.system('cp res/xorg.conf tmpdeb/etc/X11/rustdesk/')
                 os.system('cp -a DEBIAN/* tmpdeb/DEBIAN/')
                 os.system('mkdir -p tmpdeb/etc/pam.d/')
-                os.system('cp pam.d/rustdesk.debian tmpdeb/etc/pam.d/rustdesk')
+                os.system('cp pam.d/fixit_connect.debian tmpdeb/etc/pam.d/fixit_connect')
                 system2('strip tmpdeb/usr/bin/rustdesk')
                 system2('mkdir -p tmpdeb/usr/share/rustdesk')
                 system2('mv tmpdeb/usr/bin/rustdesk tmpdeb/usr/share/rustdesk/')
